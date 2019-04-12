@@ -183,6 +183,7 @@ class Modem
     loop do
       if response.end_with?(desired_response)
         response = response.chomp(desired_response).delete_prefix(command).strip
+        puts response
         return response
       end
 
