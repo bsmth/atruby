@@ -1,4 +1,11 @@
 require_relative 'modem/modem'
+require 'tty-config'
+
+config = TTY::Config.new
+config.append_path(Dir.pwd)  
+config.filename = 'sims'
+config.read
+puts config.fetch('nbpi1')
 
 bg96 = Modem.new
 sleep(0.5)

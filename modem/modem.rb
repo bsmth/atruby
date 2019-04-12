@@ -194,8 +194,8 @@ class Modem
     loop do
       if response.end_with?(desired_response)
         response = response.chomp(desired_response).delete_prefix(command).strip
-        debug_print(response)
-        break
+        puts response
+        return response
       end
 
       if now_in_ms - timer > timeout

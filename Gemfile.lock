@@ -1,0 +1,19 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    ffi (1.10.0)
+    rpi_gpio (0.3.3)
+    rubyserial (0.6.0)
+      ffi (~> 1.9, >= 1.9.3)
+    tty-config (0.3.1)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  rpi_gpio
+  rubyserial
+  tty-config
+
+BUNDLED WITH
+   1.17.3
