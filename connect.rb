@@ -23,3 +23,17 @@ bg96.getFirmwareInfo()
 sleep(0.5)
 bg96.getHardwareInfo()
 sleep(0.5)
+bg96.setMode(3)
+sleep(0.5)
+
+bg96.connectToOperator
+sleep(0.5)
+bg96.getSignalQuality
+sleep(0.5)
+bg96.getQueryNetworkInfo
+sleep(0.5)
+
+bg96.deactivateContext
+sleep(0.5)
+bg96.activateContext
+sleep(0.5)

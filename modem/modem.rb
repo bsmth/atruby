@@ -302,23 +302,23 @@ class Modem
 
   # Function for setting running mode.
   def setMode(mode)
-    if mode == self.AUTO_MODE
+    if mode == AUTO_MODE
       sendATComm('AT+QCFG="nwscanseq",00,1', "OK\r\n")
       sendATComm('AT+QCFG="nwscanmode",0,1', "OK\r\n")
       sendATComm('AT+QCFG="iotopmode",2,1', "OK\r\n")
       debug_print('Modem configuration : AUTO_MODE')
       debug_print('*Priority Table (Cat.M1 -> Cat.NB1 -> GSM)')
-    elsif mode == self.GSM_MODE
+    elsif mode == GSM_MODE
       sendATComm('AT+QCFG="nwscanseq",01,1', "OK\r\n")
       sendATComm('AT+QCFG="nwscanmode",1,1', "OK\r\n")
       sendATComm('AT+QCFG="iotopmode",2,1', "OK\r\n")
       debug_print('Modem configuration : GSM_MODE')
-    elsif mode == self.CATM1_MODE
+    elsif mode == CATM1_MODE
       sendATComm('AT+QCFG="nwscanseq",02,1', "OK\r\n")
       sendATComm('AT+QCFG="nwscanmode",3,1', "OK\r\n")
       sendATComm('AT+QCFG="iotopmode",0,1', "OK\r\n")
       debug_print('Modem configuration : CATM1_MODE')
-    elsif mode == self.CATNB1_MODE
+    elsif mode == CATNB1_MODE
       sendATComm('AT+QCFG="nwscanseq",03,1', "OK\r\n")
       sendATComm('AT+QCFG="nwscanmode",3,1', "OK\r\n")
       sendATComm('AT+QCFG="iotopmode",1,1', "OK\r\n")
@@ -326,29 +326,29 @@ class Modem
     end
   end
 
-  # # Function for getting self.ip_address
+  # # Function for getting ip_address
   # def getIPAddress
-  #   return self.ip_address
+  #   return ip_address
   # end
-  # # Function for setting self.ip_address
+  # # Function for setting ip_address
   # def setIPAddress(ip)
-  #   self.ip_address = ip
+  #   ip_address = ip
   # end
-  # # Function for getting self.domain_name
+  # # Function for getting domain_name
   # def getDomainName
-  #   return self.domain_name
+  #   return domain_name
   # end
   # # Function for setting domain name
   # def setDomainName(domain)
-  #   self.domain_name = domain
+  #   domain_name = domain
   # end
   # # Function for getting port
   # def getPort
-  #   return self.port_number
+  #   return port_number
   # end
   # # Function for setting port
   # def setPort(port)
-  #   self.port_number = port
+  #   port_number = port
   # end
   # Function for getting timout in ms
   def getTimeout
@@ -357,7 +357,7 @@ class Modem
 
   # Function for setting timeout in ms
   def setTimeout(new_timeout)
-    self.timeout = new_timeout
+    timeout = new_timeout
   end
 
   # *** Network Service Functions ***
@@ -395,7 +395,7 @@ class Modem
     clear_compose
     sleep(1)
     sendATCommOnce(text)
-    sendATComm(self.CTRL_Z, 'OK', 8) # with 8 seconds timeout
+    sendATComm(CTRL_Z, 'OK', 8) # with 8 seconds timeout
   end
 
   # *** GNSS Functions ***
@@ -501,4 +501,5 @@ class Modem
     RPi::GPIO.set_low USER_LED
   end
 end
+
 
