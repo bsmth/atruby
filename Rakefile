@@ -1,5 +1,5 @@
 
-task :build do
+task :connect do
   puts 'Running...'.bold
   sh "ruby connect.rb"
 end
