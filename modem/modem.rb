@@ -113,7 +113,6 @@ class Modem
   # Function for powering up or down BG96 module
   def powerUp
     RPi::GPIO.set_high BG96_POWERKEY
-
     debug_print('BG96 module powered up!')
     RPi::GPIO.set_low BG96_POWERKEY
   end
@@ -129,29 +128,23 @@ class Modem
     response = ''
     loop do
       response += @modem.read(120)
-      if response == desired_response
-        debug_print(response)
-        break
+      if response.end_with?(desired_response)
+        response = response.chomp(desired_response).delete_prefix(command).strip
+        return response
       end
     end
   end
 
   # Function for sending data to module
   def sendDataCommOnce(command)
-    # # @modem.open if (@modem.isOpen == false)
-    # compose = ''
-    # compose = command
-    # @modem.reset_input_buffer
     @modem.write(compose)
     debug_print(compose)
   end
 
   # Function for sending at comamand to module
   def sendATCommOnce(command)
-    # @modem.open if (@modem.isOpen == false)
     compose = ''
     compose = command + "\r"
-    # @modem.reset_input_buffer
     @modem.write(compose)
     debug_print(compose)
   end
@@ -171,13 +164,9 @@ class Modem
 
       response = ''
 
-      while @modem.inWaiting
-        response += @modem.read(@modem.inWaiting).decode('utf-8', errors = 'ignore')
-      end
-
-      if response == desired_response
-        debug_print(response)
-        break
+      if response.end_with?(desired_response)
+        response = response.chomp(desired_response).delete_prefix(command).strip
+        return response
       end
     end
   end
