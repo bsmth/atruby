@@ -4,26 +4,17 @@ require 'rpi_gpio'
 # global variables
 TIMEOUT = 3 # seconds
 
-### Private Methods ###
-
-# Function for printing debug message
+# Print debug message
 def debug_print(message)
   puts(message)
 end
 
-# Function for getting time as miliseconds
+# Getting time as miliseconds
 def now_in_ms
   Time.now.to_i
 end
 
-### Cellular IoT App Shield Class ###
-
 class Modem
-  board = '' # shield name (Cellular IoT or Cellular IoT App.)
-  ip_address = '' # ip address
-  domain_name = '' # domain name
-  port_number = '' # port number
-
   response = '' # variable for modem responses
   compose = '' # variable for command composes
 
@@ -33,44 +24,44 @@ class Modem
   BG96_POWERKEY = 24
   STATUS = 23
 
-  # Cellular Modes
-  AUTO_MODE = 0
-  GSM_MODE = 1
-  CATM1_MODE = 2
-  CATNB1_MODE = 3
-
-  # LTE Bands
-  LTE_B1 = '1'.freeze
-  LTE_B2 = '2'.freeze
-  LTE_B3 = '4'.freeze
-  LTE_B4 = '8'.freeze
-  LTE_B5 = '10'.freeze
-  LTE_B8 = '80'.freeze
-  LTE_B12 = '800'.freeze
-  LTE_B13 = '1000'.freeze
-  LTE_B18 = '20000'.freeze
-  LTE_B19 = '40000'.freeze
-  LTE_B20 = '80000'.freeze
-  LTE_B26 = '2000000'.freeze
-  LTE_B28 = '8000000'.freeze
-  LTE_B39 = '4000000000'.freeze # catm1 only
-  LTE_CATM1_ANY = '400A0E189F'.freeze
-  LTE_CATNB1_ANY = 'A0E189F'.freeze
-  LTE_NO_CHANGE = '0'.freeze
-
-  # GSM Bands
-  GSM_NO_CHANGE = '0'.freeze
-  GSM_900 = '1'.freeze
-  GSM_1800 = '2'.freeze
-  GSM_850 = '4'.freeze
-  GSM_1900 = '8'.freeze
-  GSM_ANY = 'F'.freeze
-
-  SCRAMBLE_ON = '0'.freeze
-  SCRAMBLE_OFF = '1'.freeze
+  SCRAMBLE_ON = '0'
+  SCRAMBLE_OFF = '1'
 
   # Special Characters
-  CTRL_Z = '\x1A'.freeze
+  CTRL_Z = '\x1A'
+
+  MODES = [
+    'AUTO', 'GSM', 'CATM1', 'NB'
+  ]
+
+  LTE_BANDS = {
+    B1: '1',
+    B2: '2',
+    B3: '4',
+    B4: '8',
+    B5: '10',
+    B8: '80',
+    B12: '800',
+    B13: '1000',
+    B18: '20000',
+    B19: '40000',
+    B20: '80000',
+    B26: '2000000',
+    B28: '8000000',
+    B39: '4000000000', # catm1 only
+    CATM1_ANY: '400A0E189F',
+    NB_ANY: 'A0E189F',
+    NO_CHANGE: '0'
+  }
+  
+  GSM_BANDS = {
+    NO_CHANGE: '0',
+    900: '1',
+    1800: '2',
+    850: '4',
+    1900: '8',
+    ANY: 'F'
+  }
 
   # Initializer function
   def initialize
@@ -119,7 +110,7 @@ class Modem
 
   # Function for getting modem power status
   def getModemStatus
-    RPi::GPIO.input(self.STATUS)
+    RPi::GPIO.input(STATUS)
   end
 
   # Function for getting modem response
@@ -239,11 +230,8 @@ class Modem
   # Function for setting GSM Band
   def setGSMBand(gsm_band)
     compose = 'AT+QCFG="band",'
-    compose += str(gsm_band)
-    compose += ','
-    compose += str(self.LTE_NO_CHANGE)
-    compose += ','
-    compose += str(self.LTE_NO_CHANGE)
+    compose += gsm_band
+    compose += ',0,0'
 
     sendATComm(compose, "OK\r\n")
     clear_compose
@@ -251,12 +239,9 @@ class Modem
 
   # Function for setting Cat.M1 Band
   def setCATM1Band(catm1_band)
-    compose = 'AT+QCFG="band",'
-    compose += str(self.GSM_NO_CHANGE)
-    compose += ','
-    compose += str(catm1_band)
-    compose += ','
-    compose += str(self.LTE_NO_CHANGE)
+    compose = 'AT+QCFG="band",0,'
+    compose += catm1_band
+    compose += ',0'
 
     sendATComm(compose, "OK\r\n")
     clear_compose
@@ -264,12 +249,8 @@ class Modem
 
   # Function for setting NB-IoT Band
   def setNBIoTBand(nbiot_band)
-    compose = 'AT+QCFG="band",'
-    compose += str(self.GSM_NO_CHANGE)
-    compose += ','
-    compose += str(self.LTE_NO_CHANGE)
-    compose += ','
-    compose += str(nbiot_band)
+    compose = 'AT+QCFG="band",0,0,'
+    compose += nbiot_band
 
     sendATComm(compose, "OK\r\n")
     clear_compose
@@ -291,54 +272,30 @@ class Modem
 
   # Function for setting running mode.
   def setMode(mode)
-    if mode == self.AUTO_MODE
+    if mode == 'AUTO'
       sendATComm('AT+QCFG="nwscanseq",00,1', "OK\r\n")
       sendATComm('AT+QCFG="nwscanmode",0,1', "OK\r\n")
       sendATComm('AT+QCFG="iotopmode",2,1', "OK\r\n")
-      debug_print('Modem configuration : AUTO_MODE')
+      debug_print('Modem configuration: AUTO')
       debug_print('*Priority Table (Cat.M1 -> Cat.NB1 -> GSM)')
-    elsif mode == self.GSM_MODE
+    elsif mode == 'GSM'
       sendATComm('AT+QCFG="nwscanseq",01,1', "OK\r\n")
       sendATComm('AT+QCFG="nwscanmode",1,1', "OK\r\n")
       sendATComm('AT+QCFG="iotopmode",2,1', "OK\r\n")
-      debug_print('Modem configuration : GSM_MODE')
-    elsif mode == self.CATM1_MODE
+      debug_print('Modem configuration : GSM')
+    elsif mode == 'CATM1'
       sendATComm('AT+QCFG="nwscanseq",02,1', "OK\r\n")
       sendATComm('AT+QCFG="nwscanmode",3,1', "OK\r\n")
       sendATComm('AT+QCFG="iotopmode",0,1', "OK\r\n")
-      debug_print('Modem configuration : CATM1_MODE')
-    elsif mode == self.CATNB1_MODE
+      debug_print('Modem configuration : CATM1')
+    elsif mode == 'NB'
       sendATComm('AT+QCFG="nwscanseq",03,1', "OK\r\n")
       sendATComm('AT+QCFG="nwscanmode",3,1', "OK\r\n")
       sendATComm('AT+QCFG="iotopmode",1,1', "OK\r\n")
-      debug_print('Modem configuration : CATNB1_MODE ( NB-IoT )')
+      debug_print('Modem configuration : NB ( NB-IoT )')
     end
   end
 
-  # # Function for getting self.ip_address
-  # def getIPAddress
-  #   return self.ip_address
-  # end
-  # # Function for setting self.ip_address
-  # def setIPAddress(ip)
-  #   self.ip_address = ip
-  # end
-  # # Function for getting self.domain_name
-  # def getDomainName
-  #   return self.domain_name
-  # end
-  # # Function for setting domain name
-  # def setDomainName(domain)
-  #   self.domain_name = domain
-  # end
-  # # Function for getting port
-  # def getPort
-  #   return self.port_number
-  # end
-  # # Function for setting port
-  # def setPort(port)
-  #   self.port_number = port
-  # end
   # Function for getting timout in ms
   def getTimeout
     timeout
@@ -346,7 +303,7 @@ class Modem
 
   # Function for setting timeout in ms
   def setTimeout(new_timeout)
-    self.timeout = new_timeout
+    timeout = new_timeout
   end
 
   # *** Network Service Functions ***
@@ -376,7 +333,7 @@ class Modem
     sleep(0.5)
 
     compose = 'AT+CMGS="'
-    compose += str(number)
+    compose += number
     compose += '"'
 
     sendATComm(compose, '>')
@@ -384,7 +341,7 @@ class Modem
     clear_compose
     sleep(1)
     sendATCommOnce(text)
-    sendATComm(self.CTRL_Z, 'OK', 8) # with 8 seconds timeout
+    sendATComm(CTRL_Z, 'OK', 8) # with 8 seconds timeout
   end
 
   # *** GNSS Functions ***
@@ -418,56 +375,6 @@ class Modem
     sendATComm('AT+QIDEACT=1', "\r\n")
   end
 
-  # # Function for connecting to server via TCP
-  # # just buffer access mode is supported for now.
-  # def connectToServerTCP
-  #   compose = "AT+QIOPEN=1,1"
-  #   compose += ",\"TCP\",\""
-  #   compose += str(self.ip_address)
-  #   compose += "\","
-  #   compose += str(self.port_number)
-  #   compose += ",0,0"
-  #   self.sendATComm(compose,"OK\r\n")
-  #   self.clear_compose
-  #   self.sendATComm("AT+QISTATE=0,1","OK\r\n")
-  # end
-
-  # # Fuction for sending data via tcp.
-  # # just buffer access mode is supported for now.
-  # def sendDataTCP(data)
-  #   compose = "AT+QISEND=1,"
-  #   compose += str(len(data))
-  #   self.sendATComm(compose,">")
-  #   self.sendATComm(data,"SEND OK")
-  #   self.clear_compose
-  # end
-
-  # # Function for connecting to server via UDP
-  # def startUDPService
-  #   port = "3005"
-  #   compose = "AT+QIOPEN=1,1,\"UDP SERVICE\",\""
-  #   compose += str(self.ip_address)
-  #   compose += "\",0,"
-  #   compose += str(port)
-  #   compose += ",0"
-  #   self.sendATComm(compose,"OK\r\n")
-  #   self.clear_compose
-  #   self.sendATComm("AT+QISTATE=0,1","\r\n")
-  # end
-
-  # # Fuction for sending data via udp.
-  # def sendDataUDP(data)
-  #   compose = "AT+QISEND=1,"
-  #   compose += str(len(data))
-  #   compose += ",\""
-  #   compose += str(self.ip_address)
-  #   compose += "\","
-  #   compose += str(self.port_number)
-  #   self.sendATComm(compose,">")
-  #   self.clear_compose
-  #   self.sendATComm(data,"SEND OK")
-  # end
-
   # Function for closing server connection
   def closeConnection
     sendATComm('AT+QICLOSE=1', "\r\n")
@@ -477,7 +384,7 @@ class Modem
 
   # Function for reading user button
   def readUserButton
-    RPi::GPIO.input(self.USER_BUTTON)
+    RPi::GPIO.input(USER_BUTTON)
   end
   # Function for turning on user LED
 
