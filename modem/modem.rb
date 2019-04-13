@@ -30,37 +30,37 @@ class Modem
   # Special Characters
   CTRL_Z = '\x1A'
 
-  MODES = [
+  MODE = [
     'AUTO', 'GSM', 'CATM1', 'NB'
   ]
 
-  LTE_BANDS = {
-    B1: '1',
-    B2: '2',
-    B3: '4',
-    B4: '8',
-    B5: '10',
-    B8: '80',
-    B12: '800',
-    B13: '1000',
-    B18: '20000',
-    B19: '40000',
-    B20: '80000',
-    B26: '2000000',
-    B28: '8000000',
-    B39: '4000000000', # catm1 only
-    CATM1_ANY: '400A0E189F',
-    NB_ANY: 'A0E189F',
-    NO_CHANGE: '0'
+  LTE_BAND = {
+    'B1' => '1',
+    'B2' => '2',
+    'B3' => '4',
+    'B4' => '8',
+    'B5' => '10',
+    'B8' => '80',
+    'B12' => '800',
+    'B13' => '1000',
+    'B18' => '20000',
+    'B19' => '40000',
+    'B20' => '80000',
+    'B26' => '2000000',
+    'B28' => '8000000',
+    'B39' => '4000000000', # catm1 only
+    'CATM1_ANY' => '400A0E189F',
+    'NB_ANY' => 'A0E189F',
+    'NO_CHANGE' => '0'
   }
   
-  GSM_BANDS = {
-    NO_CHANGE: '0',
-    900: '1',
-    1800: '2',
-    850: '4',
-    1900: '8',
-    ANY: 'F'
+  GSM_BAND = {
+    'NO_CHANGE' => '0',
+    'B900' => '1',
+    'B1800' => '2',
+    'B850' => '4',
+    'B1900' => '8',
+    'ANY' => 'F'
   }
 
   # Initializer function
@@ -110,7 +110,7 @@ class Modem
 
   # Function for getting modem power status
   def getModemStatus
-    RPi::GPIO.input(STATUS)
+    puts "Modem Active" if (RPi::GPIO.low? STATUS)
   end
 
   # Function for getting modem response
@@ -128,8 +128,8 @@ class Modem
 
   # Function for sending data to module
   def sendDataCommOnce(command)
-    @modem.write(compose)
-    debug_print(compose)
+    @modem.write(command)
+    debug_print(command)
   end
 
   # Function for sending at comamand to module
@@ -163,7 +163,7 @@ class Modem
   end
 
   # Function for sending at command to BG96_AT.
-  def sendATComm(command, desired_response, timeout = nil)
+  def sendATComm(command, desired_response = "OK\r\n", timeout = nil)
     timeout = @timeout if timeout.nil?
 
     sendATCommOnce(command)
@@ -230,7 +230,7 @@ class Modem
   # Function for setting GSM Band
   def setGSMBand(gsm_band)
     compose = 'AT+QCFG="band",'
-    compose += gsm_band
+    compose += GSM_BAND[gsm_band]
     compose += ',0,0'
 
     sendATComm(compose, "OK\r\n")
@@ -240,7 +240,7 @@ class Modem
   # Function for setting Cat.M1 Band
   def setCATM1Band(catm1_band)
     compose = 'AT+QCFG="band",0,'
-    compose += catm1_band
+    compose += LTE_BAND[catm1_band]
     compose += ',0'
 
     sendATComm(compose, "OK\r\n")
@@ -250,7 +250,7 @@ class Modem
   # Function for setting NB-IoT Band
   def setNBIoTBand(nbiot_band)
     compose = 'AT+QCFG="band",0,0,'
-    compose += nbiot_band
+    compose += LTE_BAND[nbiot_band]
 
     sendATComm(compose, "OK\r\n")
     clear_compose
