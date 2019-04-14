@@ -11,13 +11,13 @@ bg96 = Modem.new
 sleep(0.5)
 bg96.setupGPIO
 sleep(0.3)
-#bg96.disable
-#sleep(1)
-#bg96.enable
-#sleep(1)
-#bg96.powerUp
+bg96.disable
 sleep(1)
-bg96.getIMEI
+bg96.enable
+sleep(1)
+bg96.powerUp
+sleep(1)
+# bg96.getIMEI
 sleep(1)
 bg96.getFirmwareInfo
 sleep(0.5)
@@ -25,20 +25,20 @@ bg96.getHardwareInfo
 sleep(0.5)
 bg96.getModemStatus
 sleep(0.5)
-bg96.setNBIoTBand('NB_ANY')
-sleep(0.5)
-bg96.getBandConfiguration
-sleep(0.5)
-bg96.setMode('NB')
-sleep(0.5)
-bg96.getSignalQuality
-sleep(0.5)
-bg96.getQueryNetworkInfo
-sleep(0.5)
-bg96.connectToOperator
-sleep(0.5)
-bg96.getFixedLocation
-sleep(0.5)
-bg96.turnOnUserLED
-sleep(0.5)
-bg96.turnOffUserLED
+# bg96.setNBIoTBand('NB_ANY')
+# sleep(0.5)
+# bg96.getBandConfiguration
+# sleep(0.5)
+# bg96.setMode('NB')
+# sleep(0.5)
+# bg96.getSignalQuality
+# sleep(0.5)
+# bg96.getQueryNetworkInfo
+# sleep(0.5)
+# bg96.connectToOperator
+# sleep(0.5)
+# bg96.getFixedLocation
+# sleep(0.5)
+# bg96.turnOnUserLED
+# sleep(0.5)
+# bg96.turnOffUserLED

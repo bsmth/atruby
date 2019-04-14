@@ -65,7 +65,7 @@ class Modem
 
   # Initializer function
   def initialize
-    @modem = Serial.new '/dev/ttyS0', 115_200
+    @modem = Serial.new '/dev/ttyS0', 115200
     @timeout = TIMEOUT # default timeout for function and methods on this library.
     debug_print('Initialized')
   end
@@ -119,6 +119,7 @@ class Modem
     response = ''
     loop do
       response += @modem.read(120)
+      puts "checking if \n#{response}\n==\n#{desired_response}"
       if response.end_with?(desired_response)
         response = response.chomp(desired_response).delete_prefix(command).strip
         return response
@@ -141,7 +142,7 @@ class Modem
   end
 
   # Function for sending data to BG96_AT.
-  def sendDataComm(command, desired_response, timeout = nil)
+  def sendDataComm(command:, desired_response: "OK\r\n", timeout: nil)
     timeout = @timeout if timeout.nil?
 
     sendDataCommOnce(command)
@@ -154,7 +155,6 @@ class Modem
       end
 
       response = ''
-
       if response.end_with?(desired_response)
         response = response.chomp(desired_response).delete_prefix(command).strip
         return response
@@ -163,7 +163,7 @@ class Modem
   end
 
   # Function for sending at command to BG96_AT.
-  def sendATComm(command, desired_response = "OK\r\n", timeout = nil)
+  def sendATComm(command:, desired_response: "OK\r\n", timeout: nil)
     timeout = @timeout if timeout.nil?
 
     sendATCommOnce(command)
@@ -172,17 +172,6 @@ class Modem
     response = ''
 
     loop do
-      if response.end_with?(desired_response)
-        response = response.chomp(desired_response).delete_prefix(command).strip
-        puts response
-        return response
-      end
-
-      if now_in_ms - timer > timeout
-        sendDataCommOnce(command)
-        timer = now_in_ms
-      end
-
       begin
         response += @modem.read(120)
         sleep(0.1)
@@ -192,8 +181,18 @@ class Modem
         debug_print(e.message)
         break
       end
-
       
+      puts "checking if \n#{response}\n==\n#{desired_response}"
+      if response.end_with?(desired_response)
+        response = response.chomp(desired_response).delete_prefix(command).strip
+        puts response
+        return response
+      end
+
+      if now_in_ms - timer > timeout
+        sendDataCommOnce(command)
+        timer = now_in_ms
+      end      
     end
   end
 
@@ -209,22 +208,22 @@ class Modem
 
   # Function for save configurations that be done in current session.
   def saveConfigurations
-    sendATComm('AT&W', "OK\r\n")
+    sendATComm(command: 'AT&W')
   end
 
   # Function for getting IMEI number
   def getIMEI
-    sendATComm('AT+CGSN', "OK\r\n")
+    sendATComm(command: 'AT+CGSN')
   end
 
   # Function for getting firmware info
   def getFirmwareInfo
-    sendATComm('AT+CGMR', "OK\r\n")
+    sendATComm(command: 'AT+CGMR')
   end
 
   # Function for getting hardware info
   def getHardwareInfo
-    sendATComm('AT+CGMM', "OK\r\n")
+    sendATComm(command: 'AT+CGMM')
   end
 
   # Function for setting GSM Band
@@ -233,7 +232,7 @@ class Modem
     compose += GSM_BAND[gsm_band]
     compose += ',0,0'
 
-    sendATComm(compose, "OK\r\n")
+    sendATComm(compose)
     clear_compose
   end
 
@@ -243,7 +242,7 @@ class Modem
     compose += LTE_BAND[catm1_band]
     compose += ',0'
 
-    sendATComm(compose, "OK\r\n")
+    sendATComm(compose)
     clear_compose
   end
 
@@ -252,13 +251,13 @@ class Modem
     compose = 'AT+QCFG="band",0,0,'
     compose += LTE_BAND[nbiot_band]
 
-    sendATComm(compose, "OK\r\n")
+    sendATComm(compose)
     clear_compose
   end
 
   # Function for getting current band settings
   def getBandConfiguration
-    sendATComm('AT+QCFG="band"', "OK\r\n")
+    sendATComm(command: 'AT+QCFG="band"')
   end
 
   # Function for setting scramble feature configuration
@@ -266,32 +265,32 @@ class Modem
     compose = 'AT+QCFG="nbsibscramble",'
     compose += scramble
 
-    sendATComm(compose, "OK\r\n")
+    sendATComm(compose)
     clear_compose
   end
 
   # Function for setting running mode.
   def setMode(mode)
     if mode == 'AUTO'
-      sendATComm('AT+QCFG="nwscanseq",00,1', "OK\r\n")
-      sendATComm('AT+QCFG="nwscanmode",0,1', "OK\r\n")
-      sendATComm('AT+QCFG="iotopmode",2,1', "OK\r\n")
+      sendATComm(command: 'AT+QCFG="nwscanseq",00,1')
+      sendATComm(command: 'AT+QCFG="nwscanmode",0,1')
+      sendATComm(command: 'AT+QCFG="iotopmode",2,1')
       debug_print('Modem configuration: AUTO')
       debug_print('*Priority Table (Cat.M1 -> Cat.NB1 -> GSM)')
     elsif mode == 'GSM'
-      sendATComm('AT+QCFG="nwscanseq",01,1', "OK\r\n")
-      sendATComm('AT+QCFG="nwscanmode",1,1', "OK\r\n")
-      sendATComm('AT+QCFG="iotopmode",2,1', "OK\r\n")
+      sendATComm(command: 'AT+QCFG="nwscanseq",01,1')
+      sendATComm(command: 'AT+QCFG="nwscanmode",1,1')
+      sendATComm(command: 'AT+QCFG="iotopmode",2,1')
       debug_print('Modem configuration : GSM')
     elsif mode == 'CATM1'
-      sendATComm('AT+QCFG="nwscanseq",02,1', "OK\r\n")
-      sendATComm('AT+QCFG="nwscanmode",3,1', "OK\r\n")
-      sendATComm('AT+QCFG="iotopmode",0,1', "OK\r\n")
+      sendATComm(command: 'AT+QCFG="nwscanseq",02,1')
+      sendATComm(command: 'AT+QCFG="nwscanmode",3,1')
+      sendATComm(command: 'AT+QCFG="iotopmode",0,1')
       debug_print('Modem configuration : CATM1')
     elsif mode == 'NB'
-      sendATComm('AT+QCFG="nwscanseq",03,1', "OK\r\n")
-      sendATComm('AT+QCFG="nwscanmode",3,1', "OK\r\n")
-      sendATComm('AT+QCFG="iotopmode",1,1', "OK\r\n")
+      sendATComm(command: 'AT+QCFG="nwscanseq",03,1')
+      sendATComm(command: 'AT+QCFG="nwscanmode",3,1')
+      sendATComm(command: 'AT+QCFG="iotopmode",1,1')
       debug_print('Modem configuration : NB ( NB-IoT )')
     end
   end
@@ -310,18 +309,18 @@ class Modem
 
   # Fuction for getting signal quality
   def getSignalQuality
-    sendATComm('AT+CSQ', "OK\r\n")
+    sendATComm(command: 'AT+CSQ')
   end
 
   # Function for getting network information
   def getQueryNetworkInfo
-    sendATComm('AT+QNWINFO', "OK\r\n")
+    sendATComm(command: 'AT+QNWINFO')
   end
 
   # Function for connecting to base station of operator
   def connectToOperator
     debug_print('Trying to connect base station of operator...')
-    sendATComm('AT+CGATT?', "+CGATT: 1\r\n")
+    sendATComm(command: 'AT+CGATT?', desired_response: "+CGATT: 1\r\n")
     getSignalQuality
   end
 
@@ -329,55 +328,55 @@ class Modem
 
   # Function for sending SMS
   def sendSMS(number, text)
-    sendATComm('AT+CMGF=1', "OK\r\n") # text mode
+    sendATComm(command: 'AT+CMGF=1') # text mode
     sleep(0.5)
 
     compose = 'AT+CMGS="'
     compose += number
     compose += '"'
 
-    sendATComm(compose, '>')
+    sendATComm(compose, desired_response: '>')
     sleep(1)
     clear_compose
     sleep(1)
     sendATCommOnce(text)
-    sendATComm(CTRL_Z, 'OK', 8) # with 8 seconds timeout
+    sendATComm(command: CTRL_Z, desired_response: 'OK', timeout: 8)
   end
 
   # *** GNSS Functions ***
 
   # Function for turning on GNSS
   def turnOnGNSS
-    sendATComm('AT+QGPS=1', "OK\r\n")
+    sendATComm(command: 'AT+QGPS=1')
   end
 
   # Function for turning of GNSS
   def turnOffGNSS
-    sendATComm('AT+QGPSEND', "OK\r\n")
+    sendATComm(command: 'AT+QGPSEND')
   end
 
   # Function for getting fixed location
   def getFixedLocation
-    sendATComm('AT+QGPSLOC?', '+QGPSLOC:')
+    sendATComm(command: 'AT+QGPSLOC?', desired_response: '+QGPSLOC:')
   end
 
   # *** TCP & UDP Protocols Functions ***
 
   # Function for configurating and activating TCP context
   def activateContext
-    sendATComm('AT+QICSGP=1', "OK\r\n")
+    sendATComm(command: 'AT+QICSGP=1')
     sleep(1)
-    sendATComm('AT+QIACT=1', "\r\n")
+    sendATComm(command: 'AT+QIACT=1', desired_response: "\r\n")
   end
 
   # Function for deactivating TCP context
   def deactivateContext
-    sendATComm('AT+QIDEACT=1', "\r\n")
+    sendATComm(command: 'AT+QIDEACT=1', desired_response: "\r\n")
   end
 
   # Function for closing server connection
   def closeConnection
-    sendATComm('AT+QICLOSE=1', "\r\n")
+    sendATComm(command: 'AT+QICLOSE=1', desired_response: "\r\n")
   end
 
   # *** Shield Peripheral Functions ***
