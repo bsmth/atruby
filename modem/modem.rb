@@ -18,11 +18,17 @@ class Modem
   response = '' # variable for modem responses
   compose = '' # variable for command composes
 
-  USER_BUTTON = 22
+  USER_BUTTON = 24
   USER_LED = 27
-  BG96_ENABLE = 17
-  BG96_POWERKEY = 24
-  STATUS = 23
+  BG96_ENABLE = 26
+  RELAY = 17
+  BG96_POWERKEY = 11 
+  STATUS = 20
+  AP_READY = 6
+  RING_INDICATOR = 13
+  OPTO1 = 10
+  OPTO2 = 18
+  LUX_CHANNEL = 3
 
   SCRAMBLE_ON = '0'
   SCRAMBLE_OFF = '1'
@@ -91,26 +97,32 @@ class Modem
 
   # Function for enable BG96 module
   def enable
-    RPi::GPIO.set_low BG96_ENABLE
+    RPi::GPIO.set_high BG96_ENABLE
     debug_print('BG96 module enabled!')
   end
 
   # Function for powering down BG96 module and all peripherals from voltage regulator
   def disable
-    RPi::GPIO.set_high BG96_ENABLE
+    RPi::GPIO.set_low BG96_ENABLE
     debug_print('BG96 module disabled!')
   end
 
-  # Function for powering up or down BG96 module
+  # Function for powering up BG96 module
   def powerUp
     RPi::GPIO.set_high BG96_POWERKEY
     debug_print('BG96 module powered up!')
+  end
+
+  # Function for powering down BG96 module
+  def powerOff
     RPi::GPIO.set_low BG96_POWERKEY
+    debug_print('BG96 module powered up!')
   end
 
   # Function for getting modem power status
   def getModemStatus
-    puts "Modem Active" if (RPi::GPIO.low? STATUS)
+    puts "Powered up" if (RPi::GPIO.high? BG96_POWERKEY)
+    puts "Modem Active" if (RPi::GPIO.high? STATUS)
   end
 
   # Function for getting modem response
@@ -119,7 +131,6 @@ class Modem
     response = ''
     loop do
       response += @modem.read(120)
-      puts "checking if \n#{response}\n==\n#{desired_response}"
       if response.end_with?(desired_response)
         response = response.chomp(desired_response).delete_prefix(command).strip
         return response
@@ -172,17 +183,8 @@ class Modem
     response = ''
 
     loop do
-      begin
-        response += @modem.read(120)
-        sleep(0.1)
-        # Debug response
-        # puts "'#{response}'"
-      rescue StandardError => e
-        debug_print(e.message)
-        break
-      end
-      
-      puts "checking if \n#{response}\n==\n#{desired_response}"
+
+      # puts "checking if \n#{response}\n==\n#{desired_response}"
       if response.end_with?(desired_response)
         response = response.chomp(desired_response).delete_prefix(command).strip
         puts response
@@ -192,7 +194,16 @@ class Modem
       if now_in_ms - timer > timeout
         sendDataCommOnce(command)
         timer = now_in_ms
-      end      
+      end
+      begin
+        response += @modem.read(120)
+        sleep(0.1)
+        # Debug response
+        # puts "'#{response}'"
+      rescue StandardError => e
+        debug_print(e.message)
+        break
+      end     
     end
   end
 
@@ -251,7 +262,7 @@ class Modem
     compose = 'AT+QCFG="band",0,0,'
     compose += LTE_BAND[nbiot_band]
 
-    sendATComm(compose)
+    sendATComm(command: compose)
     clear_compose
   end
 
