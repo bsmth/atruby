@@ -4,77 +4,74 @@ require 'rpi_gpio'
 # global variables
 TIMEOUT = 3 # seconds
 
-### Private Methods ###
-
-# Function for printing debug message
+# Print debug message
 def debug_print(message)
   puts(message)
 end
 
-# Function for getting time as miliseconds
+# Getting time as miliseconds
 def now_in_ms
   Time.now.to_i
 end
 
-### Cellular IoT App Shield Class ###
-
 class Modem
-  board = '' # shield name (Cellular IoT or Cellular IoT App.)
-  ip_address = '' # ip address
-  domain_name = '' # domain name
-  port_number = '' # port number
-
   response = '' # variable for modem responses
   compose = '' # variable for command composes
 
-  USER_BUTTON = 22
+  USER_BUTTON = 24
   USER_LED = 27
-  BG96_ENABLE = 17
-  BG96_POWERKEY = 24
-  STATUS = 23
+  BG96_ENABLE = 26
+  RELAY = 17
+  BG96_POWERKEY = 11 
+  STATUS = 20
+  AP_READY = 6
+  RING_INDICATOR = 13
+  OPTO1 = 10
+  OPTO2 = 18
+  LUX_CHANNEL = 3
 
-  # Cellular Modes
-  AUTO_MODE = 0
-  GSM_MODE = 1
-  CATM1_MODE = 2
-  CATNB1_MODE = 3
-
-  # LTE Bands
-  LTE_B1 = '1'.freeze
-  LTE_B2 = '2'.freeze
-  LTE_B3 = '4'.freeze
-  LTE_B4 = '8'.freeze
-  LTE_B5 = '10'.freeze
-  LTE_B8 = '80'.freeze
-  LTE_B12 = '800'.freeze
-  LTE_B13 = '1000'.freeze
-  LTE_B18 = '20000'.freeze
-  LTE_B19 = '40000'.freeze
-  LTE_B20 = '80000'.freeze
-  LTE_B26 = '2000000'.freeze
-  LTE_B28 = '8000000'.freeze
-  LTE_B39 = '4000000000'.freeze # catm1 only
-  LTE_CATM1_ANY = '400A0E189F'.freeze
-  LTE_CATNB1_ANY = 'A0E189F'.freeze
-  LTE_NO_CHANGE = '0'.freeze
-
-  # GSM Bands
-  GSM_NO_CHANGE = '0'.freeze
-  GSM_900 = '1'.freeze
-  GSM_1800 = '2'.freeze
-  GSM_850 = '4'.freeze
-  GSM_1900 = '8'.freeze
-  GSM_ANY = 'F'.freeze
-
-  SCRAMBLE_ON = '0'.freeze
-  SCRAMBLE_OFF = '1'.freeze
+  SCRAMBLE_ON = '0'
+  SCRAMBLE_OFF = '1'
 
   # Special Characters
-  CTRL_Z = '\x1A'.freeze
+  CTRL_Z = '\x1A'
+
+  MODE = [
+    'AUTO', 'GSM', 'CATM1', 'NB'
+  ]
+
+  LTE_BAND = {
+    'B1' => '1',
+    'B2' => '2',
+    'B3' => '4',
+    'B4' => '8',
+    'B5' => '10',
+    'B8' => '80',
+    'B12' => '800',
+    'B13' => '1000',
+    'B18' => '20000',
+    'B19' => '40000',
+    'B20' => '80000',
+    'B26' => '2000000',
+    'B28' => '8000000',
+    'B39' => '4000000000', # catm1 only
+    'CATM1_ANY' => '400A0E189F',
+    'NB_ANY' => 'A0E189F',
+    'NO_CHANGE' => '0'
+  }
+  
+  GSM_BAND = {
+    'NO_CHANGE' => '0',
+    'B900' => '1',
+    'B1800' => '2',
+    'B850' => '4',
+    'B1900' => '8',
+    'ANY' => 'F'
+  }
 
   # Initializer function
   def initialize
-    @modem = Serial.new '/dev/ttyS0', 115_200
+    @modem = Serial.new '/dev/ttyS0', 115200
     @timeout = TIMEOUT # default timeout for function and methods on this library.
     debug_print('Initialized')
   end
@@ -100,26 +97,32 @@ class Modem
 
   # Function for enable BG96 module
   def enable
-    RPi::GPIO.set_low BG96_ENABLE
+    RPi::GPIO.set_high BG96_ENABLE
     debug_print('BG96 module enabled!')
   end
 
   # Function for powering down BG96 module and all peripherals from voltage regulator
   def disable
-    RPi::GPIO.set_high BG96_ENABLE
+    RPi::GPIO.set_low BG96_ENABLE
     debug_print('BG96 module disabled!')
   end
 
-  # Function for powering up or down BG96 module
+  # Function for powering up BG96 module
   def powerUp
     RPi::GPIO.set_high BG96_POWERKEY
     debug_print('BG96 module powered up!')
+  end
+
+  # Function for powering down BG96 module
+  def powerOff
     RPi::GPIO.set_low BG96_POWERKEY
+    debug_print('BG96 module powered up!')
   end
 
   # Function for getting modem power status
   def getModemStatus
-    RPi::GPIO.input(self.STATUS)
+    puts "Powered up" if (RPi::GPIO.high? BG96_POWERKEY)
+    puts "Modem Active" if (RPi::GPIO.high? STATUS)
   end
 
   # Function for getting modem response
@@ -150,7 +153,7 @@ class Modem
   end
 
   # Function for sending data to BG96_AT.
-  def sendDataComm(command, desired_response, timeout = nil)
+  def sendDataComm(command:, desired_response: "OK\r\n", timeout: nil)
     timeout = @timeout if timeout.nil?
 
     sendDataCommOnce(command)
@@ -163,7 +166,6 @@ class Modem
       end
 
       response = ''
-
       if response.end_with?(desired_response)
         response = response.chomp(desired_response).delete_prefix(command).strip
         return response
@@ -172,7 +174,7 @@ class Modem
   end
 
   # Function for sending at command to BG96_AT.
-  def sendATComm(command, desired_response, timeout = nil)
+  def sendATComm(command:, desired_response: "OK\r\n", timeout: nil)
     timeout = @timeout if timeout.nil?
 
     sendATCommOnce(command)
@@ -181,6 +183,8 @@ class Modem
     response = ''
 
     loop do
+
+      # puts "checking if \n#{response}\n==\n#{desired_response}"
       if response.end_with?(desired_response)
         response = response.chomp(desired_response).delete_prefix(command).strip
         puts response
@@ -191,7 +195,6 @@ class Modem
         sendDataCommOnce(command)
         timer = now_in_ms
       end
-
       begin
         response += @modem.read(120)
         sleep(0.1)
@@ -200,9 +203,7 @@ class Modem
       rescue StandardError => e
         debug_print(e.message)
         break
-      end
-
-      
+      end     
     end
   end
 
@@ -218,66 +219,56 @@ class Modem
 
   # Function for save configurations that be done in current session.
   def saveConfigurations
-    sendATComm('AT&W', "OK\r\n")
+    sendATComm(command: 'AT&W')
   end
 
   # Function for getting IMEI number
   def getIMEI
-    sendATComm('AT+CGSN', "OK\r\n")
+    sendATComm(command: 'AT+CGSN')
   end
 
   # Function for getting firmware info
   def getFirmwareInfo
-    sendATComm('AT+CGMR', "OK\r\n")
+    sendATComm(command: 'AT+CGMR')
   end
 
   # Function for getting hardware info
   def getHardwareInfo
-    sendATComm('AT+CGMM', "OK\r\n")
+    sendATComm(command: 'AT+CGMM')
   end
 
   # Function for setting GSM Band
   def setGSMBand(gsm_band)
     compose = 'AT+QCFG="band",'
-    compose += str(gsm_band)
-    compose += ','
-    compose += str(self.LTE_NO_CHANGE)
-    compose += ','
-    compose += str(self.LTE_NO_CHANGE)
+    compose += GSM_BAND[gsm_band]
+    compose += ',0,0'
 
-    sendATComm(compose, "OK\r\n")
+    sendATComm(compose)
     clear_compose
   end
 
   # Function for setting Cat.M1 Band
   def setCATM1Band(catm1_band)
-    compose = 'AT+QCFG="band",'
-    compose += str(self.GSM_NO_CHANGE)
-    compose += ','
-    compose += str(catm1_band)
-    compose += ','
-    compose += str(self.LTE_NO_CHANGE)
+    compose = 'AT+QCFG="band",0,'
+    compose += LTE_BAND[catm1_band]
+    compose += ',0'
 
-    sendATComm(compose, "OK\r\n")
+    sendATComm(compose)
     clear_compose
   end
 
   # Function for setting NB-IoT Band
   def setNBIoTBand(nbiot_band)
-    compose = 'AT+QCFG="band",'
-    compose += str(self.GSM_NO_CHANGE)
-    compose += ','
-    compose += str(self.LTE_NO_CHANGE)
-    compose += ','
-    compose += str(nbiot_band)
+    compose = 'AT+QCFG="band",0,0,'
+    compose += LTE_BAND[nbiot_band]
 
-    sendATComm(compose, "OK\r\n")
+    sendATComm(command: compose)
     clear_compose
   end
 
   # Function for getting current band settings
   def getBandConfiguration
-    sendATComm('AT+QCFG="band"', "OK\r\n")
+    sendATComm(command: 'AT+QCFG="band"')
   end
 
   # Function for setting scramble feature configuration
@@ -285,60 +276,36 @@ class Modem
     compose = 'AT+QCFG="nbsibscramble",'
     compose += scramble
 
-    sendATComm(compose, "OK\r\n")
+    sendATComm(compose)
     clear_compose
   end
 
   # Function for setting running mode.
   def setMode(mode)
-    if mode == self.AUTO_MODE
-      sendATComm('AT+QCFG="nwscanseq",00,1', "OK\r\n")
-      sendATComm('AT+QCFG="nwscanmode",0,1', "OK\r\n")
-      sendATComm('AT+QCFG="iotopmode",2,1', "OK\r\n")
-      debug_print('Modem configuration : AUTO_MODE')
+    if mode == 'AUTO'
+      sendATComm(command: 'AT+QCFG="nwscanseq",00,1')
+      sendATComm(command: 'AT+QCFG="nwscanmode",0,1')
+      sendATComm(command: 'AT+QCFG="iotopmode",2,1')
+      debug_print('Modem configuration: AUTO')
       debug_print('*Priority Table (Cat.M1 -> Cat.NB1 -> GSM)')
-    elsif mode == self.GSM_MODE
-      sendATComm('AT+QCFG="nwscanseq",01,1', "OK\r\n")
-      sendATComm('AT+QCFG="nwscanmode",1,1', "OK\r\n")
-      sendATComm('AT+QCFG="iotopmode",2,1', "OK\r\n")
-      debug_print('Modem configuration : GSM_MODE')
-    elsif mode == self.CATM1_MODE
-      sendATComm('AT+QCFG="nwscanseq",02,1', "OK\r\n")
-      sendATComm('AT+QCFG="nwscanmode",3,1', "OK\r\n")
-      sendATComm('AT+QCFG="iotopmode",0,1', "OK\r\n")
-      debug_print('Modem configuration : CATM1_MODE')
-    elsif mode == self.CATNB1_MODE
-      sendATComm('AT+QCFG="nwscanseq",03,1', "OK\r\n")
-      sendATComm('AT+QCFG="nwscanmode",3,1', "OK\r\n")
-      sendATComm('AT+QCFG="iotopmode",1,1', "OK\r\n")
-      debug_print('Modem configuration : CATNB1_MODE ( NB-IoT )')
+    elsif mode == 'GSM'
+      sendATComm(command: 'AT+QCFG="nwscanseq",01,1')
+      sendATComm(command: 'AT+QCFG="nwscanmode",1,1')
+      sendATComm(command: 'AT+QCFG="iotopmode",2,1')
+      debug_print('Modem configuration : GSM')
+    elsif mode == 'CATM1'
+      sendATComm(command: 'AT+QCFG="nwscanseq",02,1')
+      sendATComm(command: 'AT+QCFG="nwscanmode",3,1')
+      sendATComm(command: 'AT+QCFG="iotopmode",0,1')
+      debug_print('Modem configuration : CATM1')
+    elsif mode == 'NB'
+      sendATComm(command: 'AT+QCFG="nwscanseq",03,1')
+      sendATComm(command: 'AT+QCFG="nwscanmode",3,1')
+      sendATComm(command: 'AT+QCFG="iotopmode",1,1')
+      debug_print('Modem configuration : NB ( NB-IoT )')
     end
   end
 
-  # # Function for getting self.ip_address
-  # def getIPAddress
-  #   return self.ip_address
-  # end
-  # # Function for setting self.ip_address
-  # def setIPAddress(ip)
-  #   self.ip_address = ip
-  # end
-  # # Function for getting self.domain_name
-  # def getDomainName
-  #   return self.domain_name
-  # end
-  # # Function for setting domain name
-  # def setDomainName(domain)
-  #   self.domain_name = domain
-  # end
-  # # Function for getting port
-  # def getPort
-  #   return self.port_number
-  # end
-  # # Function for setting port
-  # def setPort(port)
-  #   self.port_number = port
-  # end
   # Function for getting timout in ms
   def getTimeout
     timeout
@@ -346,25 +313,25 @@ class Modem
 
   # Function for setting timeout in ms
   def setTimeout(new_timeout)
-    self.timeout = new_timeout
+    timeout = new_timeout
   end
 
   # *** Network Service Functions ***
 
   # Fuction for getting signal quality
   def getSignalQuality
-    sendATComm('AT+CSQ', "OK\r\n")
+    sendATComm(command: 'AT+CSQ')
   end
 
   # Function for getting network information
   def getQueryNetworkInfo
-    sendATComm('AT+QNWINFO', "OK\r\n")
+    sendATComm(command: 'AT+QNWINFO')
   end
 
   # Function for connecting to base station of operator
   def connectToOperator
     debug_print('Trying to connect base station of operator...')
-    sendATComm('AT+CGATT?', "+CGATT: 1\r\n")
+    sendATComm(command: 'AT+CGATT?', desired_response: "+CGATT: 1\r\n")
     getSignalQuality
   end
 
@@ -372,112 +339,62 @@ class Modem
 
   # Function for sending SMS
   def sendSMS(number, text)
-    sendATComm('AT+CMGF=1', "OK\r\n") # text mode
+    sendATComm(command: 'AT+CMGF=1') # text mode
     sleep(0.5)
 
     compose = 'AT+CMGS="'
-    compose += str(number)
+    compose += number
     compose += '"'
 
-    sendATComm(compose, '>')
+    sendATComm(compose, desired_response: '>')
     sleep(1)
     clear_compose
     sleep(1)
     sendATCommOnce(text)
-    sendATComm(self.CTRL_Z, 'OK', 8) # with 8 seconds timeout
+    sendATComm(command: CTRL_Z, desired_response: 'OK', timeout: 8)
   end
 
   # *** GNSS Functions ***
 
   # Function for turning on GNSS
   def turnOnGNSS
-    sendATComm('AT+QGPS=1', "OK\r\n")
+    sendATComm(command: 'AT+QGPS=1')
   end
 
   # Function for turning of GNSS
   def turnOffGNSS
-    sendATComm('AT+QGPSEND', "OK\r\n")
+    sendATComm(command: 'AT+QGPSEND')
   end
 
   # Function for getting fixed location
   def getFixedLocation
-    sendATComm('AT+QGPSLOC?', '+QGPSLOC:')
+    sendATComm(command: 'AT+QGPSLOC?', desired_response: '+QGPSLOC:')
   end
 
   # *** TCP & UDP Protocols Functions ***
 
   # Function for configurating and activating TCP context
   def activateContext
-    sendATComm('AT+QICSGP=1', "OK\r\n")
+    sendATComm(command: 'AT+QICSGP=1')
     sleep(1)
-    sendATComm('AT+QIACT=1', "\r\n")
+    sendATComm(command: 'AT+QIACT=1', desired_response: "\r\n")
   end
 
   # Function for deactivating TCP context
   def deactivateContext
-    sendATComm('AT+QIDEACT=1', "\r\n")
+    sendATComm(command: 'AT+QIDEACT=1', desired_response: "\r\n")
   end
-
-  # # Function for connecting to server via TCP
-  # # just buffer access mode is supported for now.
-  # def connectToServerTCP
-  #   compose = "AT+QIOPEN=1,1"
-  #   compose += ",\"TCP\",\""
-  #   compose += str(self.ip_address)
-  #   compose += "\","
-  #   compose += str(self.port_number)
-  #   compose += ",0,0"
-  #   self.sendATComm(compose,"OK\r\n")
-  #   self.clear_compose
-  #   self.sendATComm("AT+QISTATE=0,1","OK\r\n")
-  # end
-
-  # # Fuction for sending data via tcp.
-  # # just buffer access mode is supported for now.
-  # def sendDataTCP(data)
-  #   compose = "AT+QISEND=1,"
-  #   compose += str(len(data))
-  #   self.sendATComm(compose,">")
-  #   self.sendATComm(data,"SEND OK")
-  #   self.clear_compose
-  # end
-
-  # # Function for connecting to server via UDP
-  # def startUDPService
-  #   port = "3005"
-  #   compose = "AT+QIOPEN=1,1,\"UDP SERVICE\",\""
-  #   compose += str(self.ip_address)
-  #   compose += "\",0,"
-  #   compose += str(port)
-  #   compose += ",0"
-  #   self.sendATComm(compose,"OK\r\n")
-  #   self.clear_compose
-  #   self.sendATComm("AT+QISTATE=0,1","\r\n")
-  # end
-
-  # # Fuction for sending data via udp.
-  # def sendDataUDP(data)
-  #   compose = "AT+QISEND=1,"
-  #   compose += str(len(data))
-  #   compose += ",\""
-  #   compose += str(self.ip_address)
-  #   compose += "\","
-  #   compose += str(self.port_number)
-  #   self.sendATComm(compose,">")
-  #   self.clear_compose
-  #   self.sendATComm(data,"SEND OK")
-  # end
 
   # Function for closing server connection
   def closeConnection
-    sendATComm('AT+QICLOSE=1', "\r\n")
+    sendATComm(command: 'AT+QICLOSE=1', desired_response: "\r\n")
   end
 
   # *** Shield Peripheral Functions ***
 
   # Function for reading user button
   def readUserButton
-    RPi::GPIO.input(self.USER_BUTTON)
+    RPi::GPIO.input(USER_BUTTON)
   end
   # Function for turning on user LED
 
