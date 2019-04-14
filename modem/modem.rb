@@ -137,8 +137,8 @@ class Modem
 
   # Function for sending data to module
   def sendDataCommOnce(command)
-    @modem.write(compose)
-    debug_print(compose)
+    @modem.write(command)
+    debug_print(command)
   end
 
   # Function for sending at comamand to module
