@@ -18,17 +18,11 @@ class Modem
   response = '' # variable for modem responses
   compose = '' # variable for command composes
 
-  USER_BUTTON = 24
+  USER_BUTTON = 22
   USER_LED = 27
-  BG96_ENABLE = 26
-  RELAY = 17
-  BG96_POWERKEY = 11 
-  STATUS = 20
-  AP_READY = 6
-  RING_INDICATOR = 13
-  OPTO1 = 10
-  OPTO2 = 18
-  LUX_CHANNEL = 3
+  BG96_ENABLE = 17
+  BG96_POWERKEY = 24 
+  STATUS = 23
 
   SCRAMBLE_ON = '0'
   SCRAMBLE_OFF = '1'
@@ -92,7 +86,7 @@ class Modem
 
   # Function for clearing GPIO's setup
   def clearGPIOs
-    RPi::GPIO.cleanup
+    RPi::GPIO.clean_up
   end
 
   # Function for enable BG96 module
@@ -109,8 +103,11 @@ class Modem
 
   # Function for powering up BG96 module
   def powerUp
-    RPi::GPIO.set_high BG96_POWERKEY
+    RPi::GPIO.set_low BG96_POWERKEY
+    sleep(0.1)
     debug_print('BG96 module powered up!')
+    RPi::GPIO.set_high BG96_POWERKEY
+    sleep(0.1)
   end
 
   # Function for powering down BG96 module
@@ -155,8 +152,9 @@ class Modem
   # Function for sending data to BG96_AT.
   def sendDataComm(command:, desired_response: "OK\r\n", timeout: nil)
     timeout = @timeout if timeout.nil?
-
+    response = ''
     sendDataCommOnce(command)
+
 
     timer = now_in_ms
     loop do
@@ -165,8 +163,8 @@ class Modem
         timer = now_in_ms
       end
 
-      response = ''
-      if response.end_with?(desired_response)
+      
+      if response.end_with?(desired_response, "OK\r\n")
         response = response.chomp(desired_response).delete_prefix(command).strip
         return response
       end
@@ -174,43 +172,55 @@ class Modem
   end
 
   # Function for sending at command to BG96_AT.
-  def sendATComm(command:, desired_response: "OK\r\n", timeout: nil)
+  def sendATComm(command:, desired_response: "\r\nOK", timeout: nil)
     timeout = @timeout if timeout.nil?
 
     sendATCommOnce(command)
     sleep(0.1)
     timer = now_in_ms
     response = ''
-
     loop do
-
+      
       # puts "checking if \n#{response}\n==\n#{desired_response}"
-      if response.end_with?(desired_response)
-        response = response.chomp(desired_response).delete_prefix(command).strip
-        puts response
-        return response
-      end
 
       if now_in_ms - timer > timeout
         sendDataCommOnce(command)
         timer = now_in_ms
       end
       begin
-        response += @modem.read(120)
-        sleep(0.1)
-        # Debug response
-        # puts "'#{response}'"
+        response += @modem.read(240).rstrip
+        # puts "raw read ='#{response}'"
+        sleep(0.2)
       rescue StandardError => e
         debug_print(e.message)
         break
-      end     
+      end
+      if response.end_with?(desired_response)
+        response = response.chomp(desired_response).delete_prefix(command).strip
+        puts response
+        return response
+      elsif response.end_with?("POWERED DOWN", "ERROR")
+        repower
+        break
+      elsif response.end_with?("NO CARRIER")
+        puts response
+        break
+      elsif response.end_with?("\r\nOK")
+        response = response.chomp(desired_response).delete_prefix(command).strip
+        puts response
+      end   
     end
   end
 
+  def repower
+    sleep(1)
+    resetModule
+    sleep(1)
+  end
+
+
   # Function for saving conf. and reset BG96_AT module
   def resetModule
-    saveConfigurations
-    sleep(0.2)
     disable
     sleep(0.2)
     enable
@@ -243,7 +253,7 @@ class Modem
     compose += GSM_BAND[gsm_band]
     compose += ',0,0'
 
-    sendATComm(compose)
+    sendATComm(command: compose)
     clear_compose
   end
 
