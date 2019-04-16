@@ -14,7 +14,7 @@ def now_in_ms
   Time.now.to_i
 end
 
-class Modem
+class Atruby
   response = '' # variable for modem responses
   compose = '' # variable for command composes
 
@@ -308,12 +308,12 @@ class Modem
 
   # Function for getting timout in ms
   def getTimeout
-    timeout
+    @timeout
   end
 
   # Function for setting timeout in ms
   def setTimeout(new_timeout)
-    timeout = new_timeout
+    @timeout = new_timeout
   end
 
   # *** Network Service Functions ***
