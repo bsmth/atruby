@@ -4,6 +4,10 @@ task :connect do
   sh "ruby connect.rb"
 end
 
+task :test do
+  ruby 'test/suite.rb'
+end
+
 # Extend string to allow for formatting
 class String
   def bold
